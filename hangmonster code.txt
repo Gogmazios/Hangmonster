@@ -1,0 +1,484 @@
+namespace hangmonster_3
+{
+    public partial class Form1 : Form
+    {
+        public Form1()
+        {
+            InitializeComponent();
+        }
+
+        // Global variable declarations
+        string player;
+        string playerWord;
+        string playerReply;
+        string opponentName;
+        string opponentArticle;
+        string opponentLetter;
+
+        // This is JUST a string for the label
+        // i.e., do not use it for comparison purposes
+        string labelString = "";
+
+        // Special variable for the Sphinx
+        int sphinxPissedOff = 0;
+
+        // Monster victory
+        int wordComplete = 0;
+
+        // Monster opponents
+        string[] opponents = { "Hydra", "Medusa", "Cyclops", "Sphinx" };
+
+        // Monster chances to guess letters
+        // Note: the Hydra has unlimited chances because she has unlimited heads...
+        int[] opponentChances = { 1000, 5, 7, 10 };
+        int opponentChancesRemaining;
+
+        // Monster responses
+        string[] article = { "the ", "", "the ", "the " };
+        string[] greetings = {"Hissssss...", "Pathetic mortal!", "ROAR! Oh... Hi.", "Hail, mortal."};
+        string[] impatient = { "HISSSSSS!!!", "Do not try my patience.", "ROAR! You're no Odysseus!", "I am not amused." };
+        string[] maybe = {"HISSSSSsss...?", "Why won't you look me in the eyes?", "ROAR! What's that s'pose to mean??", "You will regret your impudence."};
+        string[] wtf = { "HISSSSsssWTF?", "Do not try my patience!", "ROAR! Are you messin' with me??", "I am not amused." };
+        string[] badGuess = {"Hisssssss...", "I have such beautiful eyes...", "ROAR! I have poor depth perception!", "A temporary setback."};
+        string[] liedTo = {"Hisssssss...?", "Mortals make poor liars...", "ROAR! But... Oh, never mind.", "I suspect trechery..."};
+        string[] gloat = { "YESSSssssss!!", "I shall add you to my statuary garden...", "Roar...? I got one?", "I am the font of all knowledge." };
+        string[] victory = { "A thousand headssssss ARE better than one!", "You'll make a lovely garden gnome.", "ROAR! EYE WIN!", "My triumph was inevitable." };
+        string[] hanged = { "You'll never see this.", "I shall have my revenge!", "ROAR! ROA-- *sob* You're so mean!", "I concede. But next time I shall alter the algorithm." };
+
+        // Player victory responses
+        string[] playerWins = { "You won't see this either.", "Congratulations. You have defeated Medusa.", "Congratulations... You made the Cyclops cry. Happy now?", "Congratulations. You have outwitted the Sphinx." };
+
+        // A list is a wrapper around an array, giving the array expanded funtionality.
+        // The size of a list can be changed dynamically; the size of an array cannot.
+        List<string> playerWordList = new List<string>() { };
+        List<string> guessedLetters = new List<string>() { };
+        List<string> emptyGuess = new List<string>() { };
+
+        // Since we're not resetting the game, just remove used letters directly from this pool
+        List<string> letters = new List<string>() { "A", "B", "C", "D", "E", "F", "G", "H", "I", "J", "K", "L", "M", "N", "O", "P", "Q", "R", "S", "T", "U", "V", "W", "X", "Y", "Z" };
+
+        // Modified letter pool for the Sphinx
+        List<string> sphinxLetters = new List<string>() { "F", "L", "E", "C", "Y", "R", "S", "T", "A", "B", "P" };
+
+        // This is such a generic name, but this is what chooses the opponent index
+        Random rand = new Random();
+        int number;
+
+        // Note: There's an overlap somewhere that allows the
+        // monster to first win and then lose. Darn it.
+
+        // Monster chooses a letter
+        private void chooseALetter()
+        {
+            // ALL letters have been used
+            // i.e., the player lied to the Hydra!
+            if (letters.Count == 0)
+            {
+                MessageBox.Show("Every letter in the alphabet has been tried. The Hydra accuses you of cheating and eats you.");
+                this.Close();
+            }
+            else
+            {
+                // Monster chooses a letter.
+                // Note: Sphinx may later get an improved pool to choose from.
+                int alphaIndex = letters.Count;
+                Random randLetter = new Random();
+                int whichLetter = randLetter.Next(alphaIndex);
+                opponentLetter = letters[whichLetter];
+                letters.Remove(opponentLetter); // This seems to work...
+                alphaIndex = letters.Count;
+
+                // Subtract one from their remaining chances
+                opponentChancesRemaining = opponentChancesRemaining - 1;
+                chancesRemainingInt.Text = opponentChancesRemaining.ToString();
+
+                // For testing
+                //opponentLetter = "E";
+                //MessageBox.Show("The letter chosen is " + opponentLetter.ToString() + ".");
+            }
+        }
+
+        private void testCharGuess() // tofu and potatoes
+        {
+                char letter;
+                int anyMatch = 0;
+                List<int> whereMatch = new List<int>() { };
+                int chooseNew = 0;
+                string sayWhat = "DEFAULT"; // Watch for this to get triggered.
+                string lowerCaseGuess = opponentLetter.ToLower();
+
+                // This determines how many letters matched, and where they matched.
+                for (int index = 0; index < playerWord.Length; index++)
+                {
+                    // this part works; i.e., iterating through the letters of the word
+                    letter = playerWord[index];
+                    //MessageBox.Show(letter.ToString());
+
+                    if (lowerCaseGuess == letter.ToString()) // Just testing this
+                    {
+                        //MessageBox.Show("Yes, " + opponentLetter + " is the same as " + letter + ".");
+                        anyMatch++; //Sorta cheating, but this will never be more than 2...
+                        whereMatch.Add(index); // This needs to be an array, I think
+                    }
+                    else
+                    {
+                        //MessageBox.Show("NO, " + opponentLetter + " is NOT the same as " + letter + ".");
+                    }
+                }
+
+                // All the various combinations of events
+                if (anyMatch == 0) // The guessed letter DOES NOT match
+                {
+                    // Player LIED
+                    if (playerReply == "yes")
+                    {
+                        //MessageBox.Show("You totally lied. There were NO matches.");
+                        // opponent guesses new letter
+                        chooseNew = 1;
+                        // WTF chat
+                        sayWhat = wtf[number];
+                    }
+                    else // Player was HONEST
+                    {
+                        // opponent guesses new letter
+                        chooseNew = 1;
+                        // Bad Guess chat
+                        sayWhat = badGuess[number];
+                    }
+                }
+                else // The guessed letter DOES match
+                {
+                    //MessageBox.Show("YES, there were matches.");
+                    if (playerReply == "no") // Player LIED
+                    {
+                        // Note: If player lies (says a true letter is false)
+                        // the monster is guaranteed to lose. But not all
+                        // monsters are stupid: Medusa and the Sphinx will
+                        // insist on using that letter. The Hydra and the
+                        // Cyclops will continue to play until they lose.
+
+                        //MessageBox.Show("You lied! There were matches. WTF.");
+                        //MessageBox.Show("number is " + number.ToString());
+                        if (number == 0 || number == 2) // Hydra or Cyclops will auto-lose
+                        {
+                            chooseNew = 1;
+                        } // no else; Medusa and Sphinx insist on re-using the same letter
+                        //opponentChat1.Text = opponentName + ": " + liedTo[number] + " " + "Is there a letter " + opponentLetter + " in the word?";
+                        sayWhat = liedTo[number];
+                    }
+                    else // Player was HONEST.
+                    {
+                        // iterates to catch ALL matches
+                        for (int index = 0; index < anyMatch; index++)
+                        {
+                            //MessageBox.Show("anyMatch = " + anyMatch.ToString());
+                            //MessageBox.Show("whereMatch[index] = " + whereMatch[index].ToString());
+                            //MessageBox.Show("labelString -> " + labelString);
+                            //MessageBox.Show("labelString insert -> " + labelString.Insert(whereMatch[index], opponentLetter));
+                            //guessedLetters.Add(opponentLetter);
+
+                            guessedLetters.RemoveAt(whereMatch[index]);
+                            guessedLetters.Insert(whereMatch[index], opponentLetter.ToLower());
+
+                            // reset labelString to a temporary clean slate
+                            labelString = "";
+
+                            for (int test = 0; test < guessedLetters.Count; test++)
+                            {
+                                //MessageBox.Show("guessedLetters[" + test.ToString() + "] -> " + guessedLetters[test]);
+                                labelString = labelString + guessedLetters[test].ToUpper() + " ";
+                            }
+                            // for testing
+                            /*for (int test2 = 0; test2 < playerWordList.Count; test2++)
+                            {
+                                MessageBox.Show("playerWordList[" + test2.ToString() + "] -> " + playerWordList[test2]);
+                            } */
+
+                            guessedLettersLabel.Text = labelString;
+                            sayWhat = gloat[number];
+                            chooseNew = 1;
+                            yesButton.Checked = false;
+
+                            // Now check to see if this letter finished the word
+                            bool equal = playerWordList.SequenceEqual(guessedLetters);
+                            //MessageBox.Show("bool equal -> " + equal.ToString());
+
+                            if (equal)
+                            {
+                                MessageBox.Show("You have been defeated. The monster has completed the word.");
+                                //this.Close();
+                                sayWhat = victory[number];
+                                wordComplete = 1;
+                                chooseNew = 0;
+                            }
+                        }
+                    }
+                }
+
+                // Has the monster been hanged?
+                if (opponentChancesRemaining == 0 && wordComplete == 0)
+                { // YES
+                    // Special message, per monster
+                    MessageBox.Show(playerWins[number]);
+                    replyLabel.Visible = false;
+                    replyRadioBox.Visible = false;
+                    replyButton.Visible = false;
+                    opponentChat1.Text = opponentName + ": " + hanged[number];
+                }
+                else // NO
+                {
+                    // Monster chooses a new letter 
+                    if (chooseNew == 1)
+                    {
+                        //MessageBox.Show("chooseNew = " + chooseNew.ToString());
+                        chooseALetter();
+                    }
+
+                    // Monster victory condition
+                    if (wordComplete == 1)
+                    { // may want to overlay a victory image
+                        replyLabel.Visible = false;
+                        replyRadioBox.Visible = false;
+                        replyButton.Visible = false;
+                        opponentChat1.Text = opponentName + ": " + sayWhat;
+                    }
+                    else // Monster still hasn't won, so the chat is different
+                    {
+                        opponentChat1.Text = opponentName + ": " + sayWhat + " " + "Is there a letter " + opponentLetter + " in the word?";
+                    }
+                }
+            }
+
+        private void exitButton_Click(object sender, EventArgs e)
+        {
+            this.Close();
+        }
+
+        private void playButton_Click(object sender, EventArgs e)
+        {
+            // Establishes the basic format of the game window.
+
+            nameLabel.Visible = false;
+            playerNameLabel.Visible = false;
+            yourOpponentLabel.Visible = false;
+            opponentPicture.Image = imageList1.Images[number];
+            opponentPicture.Visible = true;
+            goodLuckLabel.Visible = false;
+            playButton.Visible = false;
+
+            chooseLabel.Visible = false;
+            wordListBox.Visible = false;
+
+            vsLabel.Visible = true;
+            vsLabel.Text = player + " vs. " + opponentArticle + opponentName;
+            opponentChat1.Visible = true;
+
+            replyLabel.Visible = true;
+            replyRadioBox.Visible = true;
+            replyButton.Visible = true;
+
+            wordRevealLabel.Visible = true;
+            opponentGuessLabel.Visible = true;
+            secretWordLabel.Text = playerWord;
+            secretWordLabel.Visible = true;
+
+            // Hydra gets an infinite number of chances
+            if (number == 0)
+            {
+                infinityPic.Visible = true;
+            }
+
+            // Sets up the empty placeholders for the unguessed word.
+
+            for (int index = 0; index < playerWord.Length; index++)
+            {
+                playerWordList.Add(playerWord[index].ToString());
+                emptyGuess.Add(" _ ");
+                labelString = labelString.Insert(0, " _ ");
+            }
+
+            /* for testing
+            for (int index = 0; index < playerWordList.Count; index++)
+            {
+                MessageBox.Show("playerWordList[" + index.ToString() + "] -> " + playerWordList[index]);
+            } */
+
+            guessedLetters = emptyGuess;
+            guessedLettersLabel.Text = labelString;
+            guessedLettersLabel.Visible = true;
+
+            // Monster chooses an initial letter
+            chooseALetter();
+            opponentChat1.Text = opponentName + ": " + greetings[number] + " " + "Is there a letter " + opponentLetter + " in the word?";
+
+            chancesRemainingLabel.Visible = true;
+            chancesRemainingInt.Visible = true;
+        }
+
+        private void nameButton_Click(object sender, EventArgs e)
+        {
+            if (playerSubmitBox.Text == "") // No name has been submitted.
+            {
+                MessageBox.Show("Don't be shy.");
+            }
+            else
+            {
+                player = playerSubmitBox.Text;
+
+                playerSubmitBox.Visible = false;
+                nameButton.Visible = false;
+
+                playerNameLabel.Text = "Welcome " + player + ".";
+                playerNameLabel.Visible = true;
+
+                chooseLabel.Visible = true;
+                wordListBox.Visible = true;
+                chooseButton.Visible = true;
+            }
+        }
+
+        private void chooseButton_Click(object sender, EventArgs e)
+        {
+
+            if (wordListBox.SelectedIndex == -1) // No word has been selected.
+            {
+                MessageBox.Show("Please select a word.");
+            }
+
+            else // A word has been selected
+            {
+                playerWord = wordListBox.SelectedItem.ToString();
+                //MessageBox.Show("The word you chose is " + playerWord + ".");
+
+                //chooseLabel.Visible = false;
+                //wordListBox.Visible = false;
+                chooseButton.Visible = false;
+
+                // Zeus-- I mean, the RNG, chooses a monster opponent
+                number = rand.Next(4);
+                // for testing (0 hydra, 1 medusa, 2 cyclops, 3 sphinx)
+                //number = 3;
+
+                // Give the Sphinx a modified letter pool
+                if (number == 3)
+                {
+                    letters = sphinxLetters;
+                }
+
+                opponentName = opponents[number];
+                opponentArticle = article[number];
+                opponentChancesRemaining = opponentChances[number];
+
+                yourOpponentLabel.Text = "Your opponent has been chosen. You will play against " + opponentArticle + opponentName + ".";
+                yourOpponentLabel.Visible = true;
+
+                goodLuckLabel.Visible = true;
+                playButton.Visible = true;
+
+            }
+
+        }
+
+        private void replyButton_Click(object sender, EventArgs e)
+        {
+            // SPHINX SPECIAL EVENT
+            if (sphinxPissedOff == 1)
+            {
+                // Reset Sphinx's mood
+                sphinxPissedOff = 0;
+
+                // Reset the default reply buttons
+                yesButton.Text = "Yes.";
+                noButton.Text = "No.";
+                maybeButton.Text = "Maybe...";
+                prepareToDieButton.Text = "PREPARE TO DIE!";
+                opponentChat1.Text = opponentName + ": " + "Your obsequiousness shall be rewarded." + " Is there a letter " + opponentLetter + " in the word?";
+                yesButton.Checked = false;
+            }
+                // Otherwise, go through normally
+            else
+            {
+                if (prepareToDieButton.Checked)
+                {
+                    if (number == 1) // MEDUSA EXIT
+                    {
+                        MessageBox.Show("Taunting Medusa is not a good idea. You have been turned to stone.");
+                        this.Close();
+                    }
+                    opponentChat1.Visible = true;
+                    opponentChat1.Text = opponentName + ": " + impatient[number] + " Is there a letter " + opponentLetter + " in the word?";
+                }
+                else if (maybeButton.Checked)
+                {
+                    if (number == 3) // SPHINX SPECIAL
+                    {
+                        MessageBox.Show("Never try to outwit the " + opponentName + ".");
+                        // It's unwise to piss off a sphinx
+                        sphinxPissedOff = 1;
+
+                        opponentChat1.Visible = true;
+                        opponentChat1.Text = opponentName + ": Are you so foolish as to tempt me to your destruction?";
+                        maybeButton.Text = "Be merciful. I am indeed foolish.";
+                    }
+                    else
+                    {
+
+                        opponentChat1.Visible = true;
+                        opponentChat1.Text = opponentName + ": " + maybe[number] + " Is there a letter " + opponentLetter + " in the word?";
+                    }
+                }
+                else if (noButton.Checked)
+                {
+                    playerReply = "no";
+                    testCharGuess();
+                }
+                else if (yesButton.Checked)
+                {
+                    playerReply = "yes";
+                    testCharGuess();
+                }
+                else
+                {
+                    MessageBox.Show("Please reply to your opponent.");
+                }
+            }
+        }
+
+        private void radioButton3_CheckedChanged(object sender, EventArgs e)
+        {
+            // Accidental double click; this object is now immortal
+        }
+
+        private void yesButton_CheckedChanged(object sender, EventArgs e)
+        {
+            if (sphinxPissedOff == 1)
+            {
+                yesButton.Text = "My deepest apologies, o great one.";
+            }
+        }
+
+        private void noButton_CheckedChanged(object sender, EventArgs e)
+        {
+            if (sphinxPissedOff == 1)
+            {
+                noButton.Text = "I prostrate myself before your immortal wisdom.";
+            }
+        }
+
+        private void maybeButton_CheckedChanged(object sender, EventArgs e)
+        {
+            if (sphinxPissedOff == 1)
+            {
+                maybeButton.Text = "Be merciful. I am indeed foolish.";
+            }
+        }
+
+        private void prepareToDieButton_CheckedChanged(object sender, EventArgs e)
+        {
+            if (sphinxPissedOff == 1)
+            {
+                prepareToDieButton.Text = "I am a worm. Forgive me.";
+            }
+        }
+    }
+}
